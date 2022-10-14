@@ -1103,6 +1103,10 @@ func (g *groupConsumer) handleJoinResp(resp *kmsg.JoinGroupResponse) (restart bo
 	}
 
 	leader := resp.LeaderID == resp.MemberID
+	if *g.cfg.instanceID != "" {
+		leader = strings.HasPrefix(resp.LeaderID, *g.cfg.instanceID)
+	}
+
 	g.cfg.logger.Log(LogLevelInfo, fmt.Sprintf("leader is [%s]", resp.LeaderID))
 
 	if leader {
