@@ -1103,6 +1103,8 @@ func (g *groupConsumer) handleJoinResp(resp *kmsg.JoinGroupResponse) (restart bo
 	}
 
 	leader := resp.LeaderID == resp.MemberID
+	g.cfg.logger.Log(LogLevelInfo, fmt.Sprintf("leader is [%s]", resp.LeaderID))
+
 	if leader {
 		g.leader.set(true)
 		g.cfg.logger.Log(LogLevelInfo, "joined, balancing group",
@@ -1112,6 +1114,7 @@ func (g *groupConsumer) handleJoinResp(resp *kmsg.JoinGroupResponse) (restart bo
 			"generation", g.generation,
 			"balance_protocol", protocol,
 			"leader", true,
+			"leader_id", resp.LeaderID,
 		)
 		plan, err = g.balanceGroup(protocol, resp.Members, resp.SkipAssignment)
 	} else {
@@ -1121,6 +1124,7 @@ func (g *groupConsumer) handleJoinResp(resp *kmsg.JoinGroupResponse) (restart bo
 			"instance_id", g.cfg.instanceID,
 			"generation", g.generation,
 			"leader", false,
+			"leader_id", resp.LeaderID,
 		)
 	}
 	return
@@ -1593,6 +1597,8 @@ func (g *groupConsumer) findNewAssignments() {
 		g.using[topic] += change.delta
 	}
 
+	g.cfg.logger.Log(LogLevelDebug, fmt.Sprintf("[ZY-DEBUG] toChange: %+v", toChange))
+
 	if !g.managing {
 		g.managing = true
 		go g.manage()
@@ -1602,6 +1608,7 @@ func (g *groupConsumer) findNewAssignments() {
 	if numNewTopics > 0 {
 		g.rejoin("rejoining because there are more topics to consume, our interests have changed")
 	} else if g.leader.get() {
+		g.cfg.logger.Log(LogLevelDebug, "[ZY-DEBUG] leader find new assignments trigger rejoin")
 		if len(toChange) > 0 {
 			g.rejoin("rejoining because we are the leader and noticed some topics have new partitions")
 		} else if externalRejoin {
